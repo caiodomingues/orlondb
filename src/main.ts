@@ -1,7 +1,11 @@
 import Page, { PageTypeCode } from "./page";
+import Pager from "./pager";
 
-const original = new Page({
-  pageNumber: 1,
+const pager = new Pager();
+pager.open('./orlon.db');
+
+const page = new Page({
+  pageNumber: 0,
   type: PageTypeCode.leaf,
   numCells: 2,
   freeStart: 9,
@@ -11,7 +15,12 @@ const original = new Page({
   ]
 });
 
-const recovered = Page.fromBuffer(original.toBuffer());
+pager.write(page);
+pager.close();
 
-console.log('Original:', JSON.stringify(original, null, 2));
-console.log('Recovered:', JSON.stringify(recovered, null, 2));
+// Kinda simulating a restart of the DB, so we can see if data is persisted correctly;
+const pager2 = new Pager();
+pager2.open('./orlon.db');
+const recovered = pager2.read(0);
+console.log(JSON.stringify(recovered, null, 2));
+pager2.close();

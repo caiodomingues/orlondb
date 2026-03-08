@@ -27,7 +27,7 @@ export interface PageData {
   pageNumber: number;
 }
 
-const PAGE_SIZE = 4096;
+export const PAGE_SIZE = 4096;
 
 class Page {
   private type: PageTypeCode;
@@ -223,6 +223,10 @@ class Page {
       default:
         throw new Error(`Unsupported value type: ${value}`);
     }
+  }
+
+  getPageNumber(): number {
+    return this.pageNumber;
   }
 }
 

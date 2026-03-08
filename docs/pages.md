@@ -1,4 +1,4 @@
-# Páginas
+# Pager e Páginas
 
 Antes de falarmos exatamente sobre a B-Tree, primeiro vamos falar sobre o sistema de páginas: se cada página tem 4kb, como saber onde fica a próxima página?
 
@@ -35,7 +35,7 @@ Conceitualmente, o Pager precisa ter:
 ```typescript
 open(filepath)              // Abre ou cria um arquivo
 read(pageNumber)            // Retorna os 4KB daquela página como Buffer
-write(pageNumber, buffer)   // Escreve 4KB naquela posição
+write(pageNumber, buffer)   // Escreve 4KB naquela posição -> ou write(page)
 close()                     // Fecha o arquivo
 ```
 
