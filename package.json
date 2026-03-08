@@ -1,0 +1,22 @@
+{
+  "name": "orlondb",
+  "version": "1.0.0",
+  "description": "Creating a database sounds waaay to complicated, huh? So let's do it :D",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": "ts-node src/main.ts",
+    "dev": "ts-node --watch src/main.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
