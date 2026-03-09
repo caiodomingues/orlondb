@@ -44,6 +44,18 @@ class Page {
     this.pageNumber = data.pageNumber;
   }
 
+  getCells(): Cell[] {
+    return this.cells;
+  }
+
+  getType(): PageTypeCode {
+    return this.type;
+  }
+
+  getPageNumber(): number {
+    return this.pageNumber;
+  }
+
   static fromBuffer(buffer: Buffer): Page {
     const pageNumber = buffer.readUint32BE(0);  // Read pageNumber from offset 0
     const type = buffer.readUInt8(4);           // Read type from offset 4
@@ -223,10 +235,6 @@ class Page {
       default:
         throw new Error(`Unsupported value type: ${value}`);
     }
-  }
-
-  getPageNumber(): number {
-    return this.pageNumber;
   }
 }
 

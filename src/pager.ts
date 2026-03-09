@@ -39,6 +39,23 @@ class Pager {
     }
   }
 
+  // Sometimes we might want the Buffer instead of the page
+  readRaw(pageNumber: number): Buffer {
+    if (this.fileDescriptor === null) {
+      throw new Error("File not opened");
+    }
+
+    if (fs.fstatSync(this.fileDescriptor).size >= (pageNumber + 1) * PAGE_SIZE) {
+      const buffer = Buffer.alloc(PAGE_SIZE);
+
+      // fd, buffer, offset, length, position
+      fs.readSync(this.fileDescriptor, buffer, 0, PAGE_SIZE, pageNumber * PAGE_SIZE);
+      return buffer;
+    } else {
+      return Buffer.alloc(PAGE_SIZE);
+    }
+  }
+
   write(page: Page): void {
     if (this.fileDescriptor === null) {
       throw new Error("File not opened");
@@ -51,6 +68,17 @@ class Pager {
     fs.writeSync(this.fileDescriptor, bytes, 0, PAGE_SIZE, offset);
   }
 
+  writeRaw(pageNumber: number, buffer: Buffer): void {
+    if (this.fileDescriptor === null) {
+      throw new Error("File not opened");
+    }
+
+    const offset = pageNumber * PAGE_SIZE;
+
+    // fd, buffer, offset, length, position
+    fs.writeSync(this.fileDescriptor, buffer, 0, PAGE_SIZE, offset);
+  }
+
   close(): void {
     if (this.fileDescriptor === null) {
       throw new Error("File not opened");
@@ -58,6 +86,13 @@ class Pager {
 
     fs.closeSync(this.fileDescriptor);
     this.fileDescriptor = null;
+  }
+
+  getPageCount(): number {
+    if (this.fileDescriptor === null) {
+      throw new Error("File not opened");
+    }
+    return Math.floor(fs.fstatSync(this.fileDescriptor).size / PAGE_SIZE);
   }
 }
 
