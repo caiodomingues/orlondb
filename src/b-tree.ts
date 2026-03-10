@@ -104,9 +104,6 @@ class BTree {
     this.pager.write(leafToPage(leaf));
   }
 
-
-  splitLeaf(node: BTreeLeaf): void { }
-
   splitRoot(): void {
     if (this.rootPageNumber === null) {
       throw new Error("BTree not opened");
@@ -182,6 +179,191 @@ class BTree {
 
     this.rootPageNumber = newRootPageNumber;
     this.pager.writeRaw(0, metaData);
+  }
+
+  delete(key: string): void {
+    if (this.rootPageNumber === null) {
+      throw new Error("BTree not opened");
+    }
+
+    const path: Array<{ node: BTreeInternalNode, childIndex: number }> = [];
+    let node = pageToNode(this.pager.read(this.rootPageNumber));
+
+    // Traverse the tree top-down to find the leaf node with the key
+    while (!node.isLeaf) {
+      const internal = node as BTreeInternalNode;
+
+      // Find the child index to descend into. If the key is less than all keys, we go to the first child.
+      // If it's greater than all keys, we go to the last child. Otherwise, we find the correct child index based on the keys.
+      let idx = internal.keys.findIndex(k => key < k);
+      if (idx === -1) idx = internal.children.length - 1;
+
+      // Push the current internal node and child index to the path for potential backtracking
+      path.push({ node: internal, childIndex: idx });
+      node = pageToNode(this.pager.read(internal.children[idx]));
+    }
+
+    // We are now at the leaf node. We look for the key in the leaf's keys array. If found, we remove the key and its corresponding value.
+    const leaf = node as BTreeLeaf;
+    const idx = leaf.keys.indexOf(key);
+    if (idx === -1) return; // Key not found
+
+    // Remove the key and value from the leaf node
+    leaf.keys.splice(idx, 1);
+    leaf.values.splice(idx, 1);
+    this.pager.write(leafToPage(leaf));
+
+    // Detect underflow: if the leaf node has less than order - 1 keys, we need to rebalance the tree
+    const minKeys = this.order - 1;
+    if (leaf.keys.length < minKeys) {
+      this.fixLeaf(leaf, path);
+    }
+  }
+
+  private fixLeaf(leaf: BTreeLeaf, path: Array<{ node: BTreeInternalNode, childIndex: number }>): void {
+    // If there's no parent, we are at the root and we can just return
+    if (path.length === 0) return;
+
+    const { node: parent, childIndex } = path[path.length - 1];
+
+    // Tries to redistribute with the right sibling
+    const rightSiblingIdx = childIndex + 1;
+    if (rightSiblingIdx < parent.children.length) {
+      const rightSibling = pageToNode(this.pager.read(parent.children[rightSiblingIdx])) as BTreeLeaf;
+
+      if (rightSibling.keys.length > this.order - 1) {
+        // Borrow the first key from the right sibling
+        leaf.keys.push(rightSibling.keys.shift()!);
+        leaf.values.push(rightSibling.values.shift()!);
+
+        // Updates the separator in the parent to be the new first key of the right sibling
+        parent.keys[childIndex] = rightSibling.keys[0];
+
+        this.pager.write(leafToPage(leaf));
+        this.pager.write(leafToPage(rightSibling));
+        this.pager.write(internalToPage(parent));
+        return;
+      }
+    }
+
+    // Tries to redistribute with the left sibling
+    const leftSiblingIdx = childIndex - 1;
+    if (leftSiblingIdx >= 0) {
+      const leftSibling = pageToNode(this.pager.read(parent.children[leftSiblingIdx])) as BTreeLeaf;
+
+      if (leftSibling.keys.length > this.order - 1) {
+        // Borrow the last key from the left sibling
+        leaf.keys.unshift(leftSibling.keys.pop()!);
+        leaf.values.unshift(leftSibling.values.pop()!);
+
+        // Updates the separator in the parent to be the new first key of the current leaf
+        parent.keys[leftSiblingIdx] = leaf.keys[0];
+
+        this.pager.write(leafToPage(leaf));
+        this.pager.write(leafToPage(leftSibling));
+        this.pager.write(internalToPage(parent));
+        return;
+      }
+    }
+
+    // If neither sibling has extra keys to borrow, merge with a sibling
+    if (rightSiblingIdx < parent.children.length) {
+      const rightSibling = pageToNode(this.pager.read(parent.children[rightSiblingIdx])) as BTreeLeaf;
+
+      // Absorb all keys from the right sibling
+      leaf.keys.push(...rightSibling.keys);
+      leaf.values.push(...rightSibling.values);
+
+      // Removes the separator from the parent and the pointer to the right sibling
+      parent.keys.splice(childIndex, 1);
+      parent.children.splice(rightSiblingIdx, 1);
+
+      this.pager.write(leafToPage(leaf));
+      this.pager.write(internalToPage(parent));
+
+      // If the parent is now underflowed, we propagate the fix up the tree
+      if (parent.keys.length < this.order - 1) {
+        this.fixInternal(parent, path.slice(0, -1));
+      }
+
+      // If the root node has no keys after the merge, promotes the only child as the new root
+      if (parent.pageNumber === this.rootPageNumber && parent.keys.length === 0) {
+        this.updateRoot(leaf.pageNumber);
+      }
+
+      return;
+    }
+  }
+
+  // Propagates the underflow up the tree, trying to redistribute or merge internal nodes as needed.
+  private fixInternal(node: BTreeInternalNode, path: Array<{ node: BTreeInternalNode, childIndex: number }>): void {
+    if (path.length === 0) return; // Reached the root, nothing more to fix
+
+    // Tries to redistribute, otherwise merges, similar to fixLeaf but for internal nodes.
+    const { node: parent, childIndex } = path[path.length - 1];
+
+    // Tries to redistribute with the right sibling
+    const rightSiblingIdx = childIndex + 1;
+    if (rightSiblingIdx < parent.children.length) {
+      const rightSibling = pageToNode(this.pager.read(parent.children[rightSiblingIdx])) as BTreeInternalNode;
+
+      if (rightSibling.keys.length > this.order - 1) {
+        // Borrow the first key from the right sibling
+        node.keys.push(parent.keys[childIndex]);
+        parent.keys[childIndex] = rightSibling.keys.shift()!;
+        node.children.push(rightSibling.children.shift()!);
+
+        this.pager.write(internalToPage(node));
+        this.pager.write(internalToPage(rightSibling));
+        this.pager.write(internalToPage(parent));
+        return;
+      }
+    }
+
+    // Tries to redistribute with the left sibling
+    const leftSiblingIdx = childIndex - 1;
+    if (leftSiblingIdx >= 0) {
+      const leftSibling = pageToNode(this.pager.read(parent.children[leftSiblingIdx])) as BTreeInternalNode;
+
+      if (leftSibling.keys.length > this.order - 1) {
+        // Borrow the last key from the left sibling
+        node.keys.unshift(parent.keys[leftSiblingIdx]);
+        parent.keys[leftSiblingIdx] = leftSibling.keys.pop()!;
+        node.children.unshift(leftSibling.children.pop()!);
+
+        this.pager.write(internalToPage(node));
+        this.pager.write(internalToPage(leftSibling));
+        this.pager.write(internalToPage(parent));
+        return;
+      }
+    }
+
+    // If neither sibling has extra keys to borrow, merge with a sibling
+    if (rightSiblingIdx < parent.children.length) {
+      const rightSibling = pageToNode(this.pager.read(parent.children[rightSiblingIdx])) as BTreeInternalNode;
+
+      // Absorb all keys and children from the right sibling
+      node.keys.push(parent.keys[childIndex], ...rightSibling.keys);
+      node.children.push(...rightSibling.children);
+
+      // Removes the separator from the parent and the pointer to the right sibling
+      parent.keys.splice(childIndex, 1);
+      parent.children.splice(rightSiblingIdx, 1);
+
+      this.pager.write(internalToPage(node));
+      this.pager.write(internalToPage(parent));
+
+      // If the parent is now underflowed, we propagate the fix up the tree
+      if (parent.keys.length < this.order - 1) {
+        this.fixInternal(parent, path.slice(0, -1));
+      }
+
+      // If the root node has no keys after the merge, promotes the only child as the new root
+      if (parent.pageNumber === this.rootPageNumber && parent.keys.length === 0) {
+        this.updateRoot(node.pageNumber);
+      }
+      return;
+    }
   }
 }
 
