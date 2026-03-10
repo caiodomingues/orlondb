@@ -21,6 +21,6 @@ console.log(tree.search('date'));   // 4
 console.log(tree.search('apple')); // null
 console.log(tree.search('banana')); // null
 
-// Write test above ======================================
+// Write tests above ======================================
 
 pager.close();
