@@ -1,4 +1,4 @@
-# B-tree
+# B-Tree
 
 Depois de implementar as páginas e o paginador, efetivamente conseguimos ler e escrever páginas arbitrárias no disco, mas precisamos de uma estrutura que organize **quais páginas** contêm quais dados, permitindo também que encontremos qualquer chave em O(log n) leituras de página.
 
