@@ -12,20 +12,34 @@ As like [Marselo](https://github.com/caiodomingues/marselo), this is a study pro
 
 ```plaintext
 ┌─────────────────────────────┐
-│         CLI / REPL          │  <- GET, SET, DEL
+│         CLI / REPL          │  <- GET, SET, DEL, EXIT
 └──────────────┬──────────────┘
                │
 ┌──────────────▼──────────────┐
 │        STORAGE ENGINE       │
 │  ┌──────────┐  ┌─────────┐  │
-│  │  B-Tree  │  │  Pager  │  │
+│  │  B+Tree  │  │  Pager  │  │
 │  └──────────┘  └─────────┘  │
 └──────────────┬──────────────┘
                │
 ┌──────────────▼──────────────┐
-│      ARQUIVO — orlon.db     │
+│   orlon.db  |  orlon.wal    │  <- coming soon
 └─────────────────────────────┘
 ```
+
+## What's built
+
+- **Pages** — fixed-size 4KB blocks with binary serialization/deserialization
+- **Pager** — reads and writes pages at exact byte offsets in the file
+- **B+ Tree** — insert, search and delete with preventive splits and merge/redistribution on underflow
+- **CLI** — a REPL with `GET`, `SET`, `DEL` and `EXIT`
+
+## What's next
+
+- **WAL (Write-Ahead Log)** — durability and crash recovery
+- **Buffer pool** — page cache to avoid hitting disk on every read
+
+> When I say "next", I mean some time between tomorrow and 31/12/2999
 
 ## Why in TypeScript?
 
