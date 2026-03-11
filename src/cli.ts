@@ -2,6 +2,7 @@ import * as readline from 'readline';
 import { OrlonValue } from './page';
 import BTree from './b-tree';
 import Pager from './pager';
+import WAL from './wal';
 
 enum Command {
   SET = 'SET',
@@ -15,7 +16,10 @@ const rl = readline.createInterface({
   output: process.stdout,
 })
 
-const pager = new Pager();
+const wal = new WAL();
+wal.open('./orlon.wal');
+
+const pager = new Pager(wal);
 pager.open('./orlon.db');
 
 const tree = new BTree(pager, 2);

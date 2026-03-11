@@ -1,22 +1,27 @@
 import * as fs from "fs";
 
 import Page, { PAGE_SIZE } from "./page";
+import WAL from "./wal";
 
 class Pager {
   private fileDescriptor: number | null = null;
 
-  constructor() { }
+  constructor(private wal: WAL) { }
 
   open(filepath: string): void {
-    if (this.fileDescriptor !== null) {
-      throw new Error("File already opened");
-    }
-
-    // if file doesn't exist, create it with w+ flag, otherwise open it with r+ flag
     if (!fs.existsSync(filepath)) {
       this.fileDescriptor = fs.openSync(filepath, "w+");
     } else {
       this.fileDescriptor = fs.openSync(filepath, "r+");
+    }
+
+    // Recover from WAL if needed
+    const recovered = this.wal.recover((pageNumber, buffer) => {
+      this.writeRaw(pageNumber, buffer);
+    });
+
+    if (recovered) {
+      this.wal.truncate();
     }
   }
 
@@ -61,11 +66,13 @@ class Pager {
       throw new Error("File not opened");
     }
 
-    const bytes = page.toBuffer();
-    const offset = page.getPageNumber() * PAGE_SIZE;
+    const buffer = page.toBuffer();
+    const pageNumber = page.getPageNumber();
 
-    // fd, buffer, offset, length, position
-    fs.writeSync(this.fileDescriptor, bytes, 0, PAGE_SIZE, offset);
+    this.wal.writePage(pageNumber, buffer);
+    this.wal.writeCommit();
+    this.writeRaw(pageNumber, buffer);
+    this.wal.truncate();
   }
 
   writeRaw(pageNumber: number, buffer: Buffer): void {

@@ -33,10 +33,10 @@ As like [Marselo](https://github.com/caiodomingues/marselo), this is a study pro
 - **Pager** — reads and writes pages at exact byte offsets in the file
 - **B+ Tree** — insert, search and delete with preventive splits and merge/redistribution on underflow
 - **CLI** — a REPL with `GET`, `SET`, `DEL` and `EXIT`
+- **WAL (Write-Ahead Log)** — durability and crash recovery
 
 ## What's next
 
-- **WAL (Write-Ahead Log)** — durability and crash recovery
 - **Buffer pool** — page cache to avoid hitting disk on every read
 
 > When I say "next", I mean some time between tomorrow and 31/12/2999
