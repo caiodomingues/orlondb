@@ -1,7 +1,11 @@
 import BTree from "./b-tree";
 import Pager from "./pager";
+import WAL from "./wal";
 
-const pager = new Pager();
+const wal = new WAL();
+wal.open('./orlon.wal');
+
+const pager = new Pager(wal);
 pager.open('./orlon.db');
 const tree = new BTree(pager, 2);
 tree.open();
@@ -24,3 +28,4 @@ console.log(tree.search('banana')); // null
 // Write tests above ======================================
 
 pager.close();
+wal.close();
